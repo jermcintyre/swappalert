@@ -7,12 +7,16 @@ from rich.table import Table
 import time
 import random
 import statistics
+import requests
+import datetime
 
 # User configuration
 SEARCH_URL = "https://swappa.com/listings/google-pixel-9-pro-xl?carrier=unlocked&color=&storage=&modeln=&condition=&sort=&exclude_businesses=on"
 MAX_PRICE = 725
 SIGNIFICANCE_STD_DEV_MULTIPLIER = 1.5  # Flag listings below this many standard deviations
 CHECK_INTERVAL = 3  # Minutes
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1234567890/ABCDEFGHIJKL"  # Replace with your Discord webhook URL
+NOTIFICATION_INTERVAL = 15  # minutes
 
 # List of User-Agent headers to rotate
 USER_AGENTS = [
@@ -24,6 +28,16 @@ USER_AGENTS = [
 
 # Initialize the console for rich output
 console = Console()
+
+# Discord notification function
+def send_discord_notification(message: str):
+    data = {"content": message}
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=data)
+        if response.status_code != 204:
+            console.print(f"[bold red]Failed to send notification: {response.status_code}[/bold red]")
+    except Exception as e:
+        console.print(f"[bold red]Exception sending notification:[/bold red] {e}")
 
 def check_swappa():
     # Create tables for displaying listings
@@ -145,17 +159,45 @@ def check_swappa():
         console.print("\n")
         console.print(table_cheapest)
 
+        return table_all
+
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
     finally:
         driver.quit()
 
-while True:
-    check_swappa()
+def main():
+    last_notification_time = datetime.datetime.now() - datetime.timedelta(minutes=NOTIFICATION_INTERVAL)
 
-    # Introduce a random delay between 55 and 65 seconds
-    delay = random.randint(55, 65)
-    console.log(f"Waiting for {delay} seconds before the next check...")
-    time.sleep(delay)
+    while True:
+        table_all = check_swappa()
+
+        # Check if time to send a Discord notification
+        now = datetime.datetime.now()
+        if (now - last_notification_time).total_seconds() >= NOTIFICATION_INTERVAL * 60:
+            message = "New Swappa listings:\n"
+            for row_index in range(len(table_all.rows)):
+                # Extract data for each row via columns
+                price = table_all.columns[0]._cells[row_index]
+                size = table_all.columns[1]._cells[row_index]
+                condition = table_all.columns[2]._cells[row_index]
+                link = table_all.columns[3]._cells[row_index]
+
+                # Clean up the link by removing [link=...] syntax
+                if link.startswith("[link="):
+                    link = link.split("[link=")[-1].split("]")[0]
+
+                message += f"Price: {price}, Size: {size}, Condition: {condition}, Link: {link}\n"
+            send_discord_notification(message)
+            last_notification_time = now
+
+        delay = random.randint(55, 65)
+        console.log(f"Waiting {delay}s before next check...")
+        time.sleep(delay)
+
+
+
+if __name__ == "__main__":
+    main()
 
