@@ -1,0 +1,4 @@
+selenium==4.27.1
+webdriver-manager==3.9.1
+rich==13.4.0
+
