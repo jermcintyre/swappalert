@@ -1,6 +1,6 @@
 # SwappAlert
 
-SwappAlert is a Python script designed to monitor and analyze listings for Google Pixel 9 Pro XL on [Swappa](https://swappa.com). Stay informed about the latest deals by dynamically tracking and displaying listings under your specified budget.
+SwappAlert is a Python script designed to monitor and analyze listings for any device on [Swappa](https://swappa.com). Stay informed about the latest deals by dynamically tracking and displaying listings under your specified budget.
 
 ## Features
 - Monitors listings under a specified price threshold.
