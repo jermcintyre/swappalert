@@ -8,11 +8,14 @@ import statistics
 import datetime
 
 # User configuration
-SEARCH_URL = "https://swappa.com/listings/google-pixel-9-pro?carrier=unlocked&color=&storage=256gb&modeln=&condition=&sort=&exclude_businesses=on"  # Swappa search URL
-MAX_PRICE = 600 # Maximum price to consider for a listing (in USD)
+SEARCH_URL = "https://swappa.com/listings/google-pixel-9-pro?carrier=unlocked&color=&storage=&modeln=&condition=&sort=&exclude_businesses=on"  # Swappa search URL
+MAX_PRICE = 610 # Maximum price to consider for a listing (in USD)
 SIGNIFICANCE_STD_DEV_MULTIPLIER = 1.5  # Flag listings below this many standard deviations
 CHECK_INTERVAL = 5  # Minutes
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/your_id/your_token"
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1234567890/ABCDEFGHIJK"  # Discord webhook URL
+NOTIFICATION_INTERVAL = 5  # Minutes
+DESIRED_SIZE = "ANY"  # Desired size to filter notifications
+CACHE_CLEAR_HOURS = 24  # Hours to keep listings in cache before clearing
 
 # Initialize console for rich output
 console = Console()
@@ -24,6 +27,10 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36",
 ]
+
+# Notified listings cache
+notified_listings = {}  # key: url, value: {price, size, condition, timestamp}
+last_listings_clear = datetime.datetime.now()
 
 # Discord notification function
 def send_discord_notification(message: str):
@@ -44,11 +51,9 @@ def scrape_swappa():
         return []
 
     soup = BeautifulSoup(response.content, "html.parser")
-
-    # Find all listing rows
     rows = soup.select("tr")
-
     listings = []
+
     for row in rows:
         try:
             # Extract price
@@ -58,28 +63,42 @@ def scrape_swappa():
             price = float(price_element.text.strip())
 
             # Extract link
-            link_element = row.select_one("a[aria-controls='slide_listing_update_price']")
+            link_element = row.select_one("a[href^='/listing/']")
             if not link_element:
                 continue
             link = "https://swappa.com" + link_element.get("href")
+
+            # Updated condition extraction - without HTML debug printing
+            condition = "Unknown"
+            for td in row.find_all("td"):
+                text = td.text.strip()
+                if any(c in text for c in ["New", "Mint", "Good", "Fair"]):
+                    condition = next(c for c in ["New", "Mint", "Good", "Fair"] if c in text)
+                    break
 
             # Extract size
             size_element = row.find(lambda tag: tag.name == "td" and ("GB" in tag.text or "TB" in tag.text))
             size = size_element.text.strip() if size_element else "Unknown"
 
-            # Extract condition
-            condition_element = row.find(lambda tag: tag.name == "td" and tag.text in ["New", "Mint", "Good", "Fair"])
-            condition = condition_element.text.strip() if condition_element else "Unknown"
-
-            # Add listing to the list
             listings.append({"price": price, "size": size, "condition": condition, "link": link})
-        except Exception:
+            
+        except Exception as e:
             continue
 
     return listings
 
 # Analyze listings and display results
+last_notification_time = datetime.datetime.now() - datetime.timedelta(minutes=NOTIFICATION_INTERVAL)
+
 def analyze_listings(listings):
+    global last_notification_time, notified_listings, last_listings_clear
+    now = datetime.datetime.now()
+
+    # Clear old cache entries
+    if (now - last_listings_clear).total_seconds() >= (CACHE_CLEAR_HOURS * 60 * 60):
+        notified_listings.clear()
+        last_listings_clear = now
+
     # Tables for each view
     table_all = Table(title="Swappa Listings Under Budget", title_style="bold cyan")
     table_all.add_column("Price ($)", style="bold green", justify="center")
@@ -145,6 +164,39 @@ def analyze_listings(listings):
     console.print(table_significant)
     console.print("\n")
     console.print(table_cheapest)
+
+    # Filter for new or updated listings
+    matching_listings = [
+        listing for listing in listings 
+        if (listing['price'] <= MAX_PRICE and 
+            (DESIRED_SIZE == "ANY" or listing['size'] == DESIRED_SIZE) and
+            (listing['link'] not in notified_listings or 
+             notified_listings[listing['link']]['price'] != listing['price']))
+    ]
+    
+    if matching_listings and (now - last_notification_time).total_seconds() >= NOTIFICATION_INTERVAL * 60:
+        message = "🔔 New/Updated Swappa listings under budget:\n\n"
+        for listing in matching_listings:
+            is_update = listing['link'] in notified_listings
+            old_price = notified_listings.get(listing['link'], {}).get('price', None)
+            
+            if is_update:
+                message += f"📊 PRICE UPDATE: ${old_price} ➡️ ${listing['price']} | {listing['size']} | {listing['condition']}\n"
+            else:
+                message += f"💰 ${listing['price']} | {listing['size']} | {listing['condition']}\n"
+            message += f"🔗 {listing['link']}\n\n"
+            
+            # Update cache with new listing data
+            notified_listings[listing['link']] = {
+                'price': listing['price'],
+                'size': listing['size'],
+                'condition': listing['condition'],
+                'timestamp': now
+            }
+        
+        send_discord_notification(message)
+        last_notification_time = now
+        console.log(f"Discord notification sent for {len(matching_listings)} new/updated listings")
 
 # Main function
 def main():
