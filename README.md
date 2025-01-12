@@ -28,7 +28,7 @@ SwappAlert is a Python script designed to monitor and analyze listings for any d
    ```bash
    python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip3 install -r requirements.txt
    ```
 
 3. Edit the script (`swappalert.py`) to configure your `MAX_PRICE` and other preferences.
@@ -36,7 +36,7 @@ SwappAlert is a Python script designed to monitor and analyze listings for any d
 ## Usage
 Run the script:
 ```bash
-python swappalert.py
+python3 swappalert.py
 ```
 
 ## Configuration
