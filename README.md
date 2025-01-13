@@ -2,7 +2,7 @@
 
 SwappAlert is a Python script designed to monitor and analyze listings for any device on [Swappa](https://swappa.com). Stay informed about the latest deals with Discord notifications, dynamic price tracking, and detailed tables.
 
-![image](https://github.com/user-attachments/assets/9186cd54-9ffd-4843-887e-b63864326d79)
+![image](https://github.com/user-attachments/assets/824bb245-a1d2-4af2-a2a6-2fcb6a21f40b)
 
 ---
 
