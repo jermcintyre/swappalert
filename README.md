@@ -39,6 +39,12 @@ Run the script:
 python3 swappalert.py
 ```
 
+## Docker Usage
+1. Build the container:
+```bash
+docker build -t swappalert .
+```
+
 ## Configuration
 Customize these key variables in the script:
 - **MAX_PRICE**: Set your budget to filter listings.
