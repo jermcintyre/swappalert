@@ -126,7 +126,7 @@ docker build -t swappalert .
 
 ### Run the Script in Docker
 ```bash
-docker run -it swappalert
+docker run --rm swappalert
 ```
 
 ---
